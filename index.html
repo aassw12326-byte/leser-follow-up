@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>متابعة مراجعي الليزر - عيادات الريم</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --primary: #0f766e;
+      --primary-dark: #115e59;
+      --accent: #2563eb;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; padding: 16px; position: sticky; top: 0; z-index: 20;
+      box-shadow: 0 2px 10px rgba(0,0,0,.1);
+    }
+    .header-inner { max-width: 960px; margin: auto; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+    .badge { background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+    .container { max-width: 960px; margin: 18px auto; padding: 0 14px 40px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      font-size: 14px; background: #fff; color: var(--text);
+    }
+    button {
+      border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: .15s;
+    }
+    button:active { transform: scale(.98); }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-blue { background: var(--accent); color: #fff; }
+    .btn-warn { background: var(--warn); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-light { background: #eef2f6; color: var(--text); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .patient-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; font-size: 13px; }
+    .pill { display: inline-block; padding: 3px 9px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+    .pill-wait { background: #fef3c7; color: #92400e; }
+    .pill-done { background: #dcfce7; color: #166534; }
+    .note-box { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px; margin-top: 8px; font-size: 13px; }
+    .lock-screen {
+      position: fixed; inset: 0; background: var(--primary-dark); color: #fff;
+      display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100;
+    }
+    .lock-box {
+      background: #fff; color: var(--text); width: 100%; max-width: 360px;
+      padding: 24px; border-radius: 16px; text-align: center; box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,.55); display: none;
+      align-items: center; justify-content: center; padding: 16px; z-index: 60;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: #fff; border-radius: 16px; padding: 18px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .chip { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-box">
+    <h2 style="margin-top:0;">قفل نظام المتابعة</h2>
+    <p style="color:var(--muted);font-size:13px;">أدخل رمز الموظف (1234) أو رمز المدير (9999)</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="••••" style="text-align:center;font-size:20px;letter-spacing:6px;margin-bottom:12px;" />
+    <button class="btn-primary" style="width:100%;" onclick="unlockApp()">دخول</button>
+    <p id="lockError" style="color:var(--danger);font-size:12px;margin-top:8px;"></p>
+  </div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <strong>متابعة مراجعي الليزر</strong>
+      <span id="roleBadge" class="badge">غير مسجل</span>
+      <span id="syncBadge" class="badge">غير مرتبط بالشيت</span>
+    </div>
+    <div class="actions" style="margin:0;">
+      <button class="btn-light" onclick="openSettings()">إعدادات الربط والرموز</button>
+      <button class="btn-light" onclick="syncSheet()">مزامنة</button>
+      <button class="btn-light" onclick="lockApp()">قفل</button>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h3 style="margin-top:0;">إضافة مراجع جديد</h3>
+    <div class="grid">
+      <div>
+        <label>اسم المراجع</label>
+        <input id="pName" type="text" placeholder="مثال: علي حسين" />
+      </div>
+      <div>
+        <label>رقم الهاتف (واتساب)</label>
+        <input id="pPhone" type="tel" placeholder="077xxxxxxxx" />
+      </div>
+      <div>
+        <label>تاريخ الجلسة</label>
+        <input id="pDate" type="date" />
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="addPatient()">حفظ وإرسال إلى Google Sheets</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <input id="searchInput" type="text" placeholder="ابحث باسم المراجع أو رقم الهاتف..." oninput="renderPatients()" />
+  </div>
+
+  <div id="patientsList"></div>
+</div>
+
+<!-- نافذة الملاحظات -->
+<div id="noteModal" class="modal-backdrop">
+  <div class="modal">
+    <h3 id="noteModalTitle" style="margin-top:0;">تسجيل ملاحظة</h3>
+    <div class="chips">
+      <span class="chip" onclick="appendQuickNote('الوضع طبيعي ولا يوجد تحسس')">الوضع طبيعي ولا يوجد تحسس</span>
+      <span class="chip" onclick="appendQuickNote('احمرار بسيط ويزول خلال ساعات')">احمرار بسيط ويزول خلال ساعات</span>
+      <span class="chip" onclick="appendQuickNote('لم يرد على الاتصال - سيعاد التواصل')">لم يرد على الاتصال</span>
+      <span class="chip" onclick="appendQuickNote('تم حجز الجلسة القادمة')">تم حجز الجلسة القادمة</span>
+    </div>
+    <label>الحالة</label>
+    <select id="noteStatus" style="margin-bottom:10px;">
+      <option value="تم التواصل">تم التواصل</option>
+      <option value="بانتظار الاتصال">بانتظار الاتصال</option>
+      <option value="لم يرد">لم يرد</option>
+    </select>
+    <label>نص الملاحظة</label>
+    <textarea id="noteText" rows="3" placeholder="اكتب ملاحظة المراجع هنا..."></textarea>
+    <div class="actions">
+      <button class="btn-primary" onclick="saveNote()">حفظ الملاحظة</button>
+      <button class="btn-light" onclick="closeModal('noteModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة الإعدادات -->
+<div id="settingsModal" class="modal-backdrop">
+  <div class="modal">
+    <h3 style="margin-top:0;">إعدادات الربط والرموز</h3>
+    <label>رابط Google Apps Script (ينتهي بـ /exec)</label>
+    <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:10px;" />
+    <div id="adminPinsBox" style="display:none;">
+      <label>رمز الموظف (PIN)</label>
+      <input id="staffPinInput" type="text" style="margin-bottom:10px;" />
+      <label>رمز المدير (PIN)</label>
+      <input id="adminPinInput" type="text" style="margin-bottom:10px;" />
+    </div>
+    <div class="actions">
+      <button class="btn-primary" onclick="saveSettings()">حفظ الإعدادات</button>
+      <button class="btn-light" onclick="closeModal('settingsModal')">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const DEFAULT_GAS_URL = ''; // يمكنك وضع رابط /exec هنا مباشرة إذا أردت
+  let state = {
+    role: null,
+    staffPin: localStorage.getItem('staffPin') || '1234',
+    adminPin: localStorage.getItem('adminPin') || '9999',
+    gasUrl: localStorage.getItem('gasUrl') || DEFAULT_GAS_URL,
+    patients: JSON.parse(localStorage.getItem('laserPatients') || '[]')
+  };
+  let activeNoteCtx = null;
+
+  document.getElementById('pDate').valueAsDate = new Date();
+  updateBadges();
+
+  function unlockApp() {
+    const val = document.getElementById('pinInput').value.trim();
+    if (val === state.adminPin) {
+      state.role = 'admin';
+    } else if (val === state.staffPin) {
+      state.role = 'staff';
+    } else {
+      document.getElementById('lockError').textContent = 'رمز الدخول غير صحيح';
+      return;
+    }
+    document.getElementById('lockError').textContent = '';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('lockScreen').style.display = 'none';
+    updateBadges();
+    renderPatients();
+  }
+
+  function lockApp() {
+    state.role = null;
+    document.getElementById('lockScreen').style.display = 'flex';
+    updateBadges();
+  }
+
+  function updateBadges() {
+    document.getElementById('roleBadge').textContent =
+      state.role === 'admin' ? 'المدير' : state.role === 'staff' ? 'الموظف' : 'غير مسجل';
+    document.getElementById('syncBadge').textContent =
+      state.gasUrl ? 'مرتبط بالشيت' : 'غير مرتبط بالشيت';
+  }
+
+  function addDays(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function formatPhoneWa(phone) {
+    let p = (phone || '').replace(/\D/g, '');
+    if (p.startsWith('07')) p = '964' + p.slice(1);
+    return p;
+  }
+
+  async function addPatient() {
+    const name = document.getElementById('pName').value.trim();
+    const phone = document.getElementById('pPhone').value.trim();
+    const sessionDate = document.getElementById('pDate').value;
+    if (!name || !sessionDate) {
+      alert('يرجى إدخال اسم المراجع وتاريخ الجلسة');
+      return;
+    }
+    const patient = {
+      id: Date.now().toString(),
+      name,
+      phone,
+      sessionDate,
+      day5Date: addDays(sessionDate, 5),
+      day21Date: addDays(sessionDate, 21),
+      day5Status: 'بانتظار الاتصال',
+      day5Notes: '',
+      day21Status: 'بانتظار الاتصال',
+      day21Notes: ''
+    };
+    state.patients.unshift(patient);
+    persistLocal();
+    renderPatients();
+    document.getElementById('pName').value = '';
+    document.getElementById('pPhone').value = '';
+    await sendToSheet(patient);
+  }
+
+  function persistLocal() {
+    localStorage.setItem('laserPatients', JSON.stringify(state.patients));
+  }
+
+  async function sendToSheet(patient) {
+    if (!state.gasUrl) return;
+    try {
+      await fetch(state.gasUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patient)
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function syncSheet() {
+    if (!state.gasUrl) {
+      alert('أضف رابط Google Apps Script أولاً من الإعدادات');
+      return;
+    }
+    try {
+      const res = await fetch(state.gasUrl);
+      const data = await res.json();
+      if (data && Array.isArray(data.rows) && data.rows.length > 1) {
+        const imported = data.rows.slice(1).filter(r => r[0]).map((r, idx) => ({
+          id: 'sheet-' + idx + '-' + (r[1] || ''),
+          name: r[0] || '',
+          phone: r[1] || '',
+          sessionDate: r[2] || '',
+          day5Date: r[3] || '',
+          day21Date: r[4] || '',
+          day5Status: r[5] || 'بانتظار الاتصال',
+          day5Notes: r[6] || '',
+          day21Status: r[7] || 'بانتظار الاتصال',
+          day21Notes: r[8] || ''
+        }));
+        if (imported.length) {
+          state.patients = imported;
+          persistLocal();
+          renderPatients();
+          alert('تمت المزامنة بنجاح');
+        }
+      }
+    } catch (e) {
+      alert('تعذر جلب البيانات، تأكد من نشر السكربت بصلاحية Anyone');
+    }
+  }
+
+  function openNoteModal(id, stage) {
+    activeNoteCtx = { id, stage };
+    const p = state.patients.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('noteModalTitle').textContent =
+      stage === 5 ? `ملاحظات 5 أيام - ${p.name}` : `ملاحظات 21 يوم - ${p.name}`;
+    document.getElementById('noteStatus').value = stage === 5 ? p.day5Status : p.day21Status;
+    document.getElementById('noteText').value = '';
+    document.getElementById('noteModal').classList.add('open');
+  }
+
+  function appendQuickNote(txt) {
+    const el = document.getElementById('noteText');
+    el.value = el.value ? el.value + ' - ' + txt : txt;
+  }
+
+  async function saveNote() {
+    if (!activeNoteCtx) return;
+    const p = state.patients.find(x => x.id === activeNoteCtx.id);
+    const status = document.getElementById('noteStatus').value;
+    const text = document.getElementById('noteText').value.trim();
+    const stamp = new Date().toLocaleDateString('ar-IQ');
+    const line = text ? `[${stamp}] ${text}` : '';
+
+    if (activeNoteCtx.stage === 5) {
+      p.day5Status = status;
+      if (line) p.day5Notes = p.day5Notes ? p.day5Notes + ' | ' + line : line;
+    } else {
+      p.day21Status = status;
+      if (line) p.day21Notes = p.day21Notes ? p.day21Notes + ' | ' + line : line;
+    }
+    persistLocal();
+    renderPatients();
+    closeModal('noteModal');
+    await sendToSheet(p);
+  }
+
+  function deletePatient(id) {
+    if (state.role !== 'admin') {
+      alert('الحذف متاح للمدير فقط');
+      return;
+    }
+    if (!confirm('هل تريد حذف هذا السجل محلياً؟')) return;
+    state.patients = state.patients.filter(x => x.id !== id);
+    persistLocal();
+    renderPatients();
+  }
+
+  function openSettings() {
+    document.getElementById('gasUrlInput').value = state.gasUrl;
+    document.getElementById('adminPinsBox').style.display = state.role === 'admin' ? 'block' : 'none';
+    document.getElementById('staffPinInput').value = state.staffPin;
+    document.getElementById('adminPinInput').value = state.adminPin;
+    document.getElementById('settingsModal').classList.add('open');
+  }
+
+  function saveSettings() {
+    state.gasUrl = document.getElementById('gasUrlInput').value.trim();
+    localStorage.setItem('gasUrl', state.gasUrl);
+    if (state.role === 'admin') {
+      state.staffPin = document.getElementById('staffPinInput').value.trim() || '1234';
+      state.adminPin = document.getElementById('adminPinInput').value.trim() || '9999';
+      localStorage.setItem('staffPin', state.staffPin);
+      localStorage.setItem('adminPin', state.adminPin);
+    }
+    updateBadges();
+    closeModal('settingsModal');
+    alert('تم حفظ الإعدادات');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  function renderPatients() {
+    const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    const list = document.getElementById('patientsList');
+    const filtered = state.patients.filter(p =>
+      (p.name || '').toLowerCase().includes(q) || (p.phone || '').toLowerCase().includes(q)
+    );
+    if (!filtered.length) {
+      list.innerHTML = '<div class="card" style="text-align:center;color:var(--muted);">لا توجد سجلات مطابقة حالياً</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(p => {
+      const wa = formatPhoneWa(p.phone);
+      return `
+        <div class="card">
+          <div class="patient-head">
+            <div>
+              <strong style="font-size:16px;">${p.name}</strong>
+              <span style="color:var(--muted);margin-right:8px;">${p.phone || 'بدون رقم'}</span>
+            </div>
+            <div>
+              <span class="pill ${p.day5Status === 'تم التواصل' ? 'pill-done' : 'pill-wait'}">5 أيام: ${p.day5Status}</span>
+              <span class="pill ${p.day21Status === 'تم التواصل' ? 'pill-done' : 'pill-wait'}">21 يوم: ${p.day21Status}</span>
+            </div>
+          </div>
+          <div class="meta">
+            <div><strong>الجلسة:</strong> ${p.sessionDate}</div>
+            <div><strong>متابعة 5 أيام:</strong> ${p.day5Date}</div>
+            <div><strong>متابعة 21 يوم:</strong> ${p.day21Date}</div>
+          </div>
+          ${p.day5Notes ? `<div class="note-box"><strong>ملاحظات 5 أيام:</strong> ${p.day5Notes}</div>` : ''}
+          ${p.day21Notes ? `<div class="note-box"><strong>ملاحظات 21 يوم:</strong> ${p.day21Notes}</div>` : ''}
+          <div class="actions">
+            ${p.phone ? `<a href="tel:${p.phone}" style="text-decoration:none;"><button class="btn-blue">اتصال</button></a>` : ''}
+            ${wa ? `<a href="https://wa.me/${wa}" target="_blank" style="text-decoration:none;"><button class="btn-primary">واتساب</button></a>` : ''}
+            <button class="btn-warn" onclick="openNoteModal('${p.id}', 5)">ملاحظة 5 أيام</button>
+            <button class="btn-warn" onclick="openNoteModal('${p.id}', 21)">ملاحظة 21 يوم</button>
+            ${state.role === 'admin' ? `<button class="btn-danger" onclick="deletePatient('${p.id}')">حذف</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+</script>
+</body>
+</html>
